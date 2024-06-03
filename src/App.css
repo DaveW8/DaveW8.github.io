@@ -36,3 +36,15 @@
     transform: rotate(360deg);
   }
 }
+
+.trip-page-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.trip-page-column {
+  height: 100vh;
+  justify-content: center;
+  align-items: center;
+}
