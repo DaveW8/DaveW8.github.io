@@ -2,12 +2,33 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import Hawaii from './travel/hawaii/index.';
+import Taiwan from './travel/taiwan/index.js';
 import reportWebVitals from './reportWebVitals';
+import {
+  createHashRouter,
+  RouterProvider
+} from "react-router-dom"
+
+const router = createHashRouter([
+  {
+    path: "/",
+    element: <App />
+  },
+  {
+    path: "taiwan",
+    element: <Taiwan />
+  },
+  {
+    path: "hawaii",
+    element: <Hawaii />
+  }
+])
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    <RouterProvider router={router} />
   </React.StrictMode>
 );
 
