@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline,  Marker, Popup, useMap } from 'react-leaflet';
 import TimelineSlider from './TimelineSlider';
 import 'leaflet/dist/leaflet.css';
 
@@ -57,14 +57,15 @@ const MapBoundsRestrictor = ({bounds}) => {
 };
 
 //const MapComponent = ({center, minZoom, bounds, route, locations, routeData }) => {
-const MapComponent = ({center, minZoom, bounds, routeData }) => {
+const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => {
 	const [polylinePoints, setPolylinePoints] = useState([]);
 	const [ratio, setRatio] = useState(0);
+	const [visibleMarkers, setVisibleMarkers] = useState([]);
 
 	const hasMounted = useRef(false);
 
 	const route = routeData.map(point => point.position)
-	const locations = routeData.map(point => point.label)
+	const locations = routeData.map(point => ({label: point.label, style: timelineStyles.markStyles}))
 
 	const handleSliderChange = (value) => {
 		console.log("LOGGING CHANGE IN SLIDER VALUE", value)
@@ -77,19 +78,34 @@ const MapComponent = ({center, minZoom, bounds, routeData }) => {
 			const updatedPoints = interpolatePoints(route, ratio);
 			console.log("LOGGING POINTS AFTER UPDATE", updatedPoints)
 			setPolylinePoints(updatedPoints);
+
+			const updatedMarkers = routeData.filter(marker => marker.time <= ratio);
+    	setVisibleMarkers(updatedMarkers);
 		} else {
 			hasMounted.current = true;
 		}
   }, [ratio]);
 
   return (
-		<div>
+		<div 
+			style={{ 
+				height: '100vh',
+				margin: '0',
+				overflow: 'hidden',
+				position: 'relative'
+				//width: '100%'
+			}}
+		>
 			<MapContainer 
 				center={center} 
 				zoom={minZoom} 
 				minZoom={minZoom} 
 				bounds={bounds}
-				style={{ height: '100vh', width: '100%' }}
+				timelineStyles={timelineStyles}
+				style={{ 
+					height: '100%', 
+					width: '100%' 
+				}}
 			>
 				<TileLayer
 					url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -98,9 +114,14 @@ const MapComponent = ({center, minZoom, bounds, routeData }) => {
 				{polylinePoints.length > 0 && (
 					<Polyline positions={polylinePoints} color="blue" />
 				)}
+				{visibleMarkers.map((marker, index) => (
+					<Marker key={index} position={marker.position}>
+						<Popup>{marker.label}</Popup>
+					</Marker>
+				))}
 				<MapBoundsRestrictor bounds={bounds} />
 			</MapContainer>
-			<TimelineSlider onChange={handleSliderChange} locations={locations} />
+			<TimelineSlider onChange={handleSliderChange} locations={locations} styles={timelineStyles} />
 		</div>
   );
 };
