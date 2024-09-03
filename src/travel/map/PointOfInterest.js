@@ -1,7 +1,7 @@
 import { Modal, Box, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
-const PointOfInterest = ({open, onClose}) => {
+const PointOfInterest = ({open, onClose, data}) => {
 	return (
 		<Modal 
 			open={open}
@@ -39,8 +39,8 @@ const PointOfInterest = ({open, onClose}) => {
 				>
 					<CloseIcon />
 				</IconButton>
-				<h2>Modal Title</h2>
-				<p>This is a larger modal with more content. It covers most of the screen.</p>
+				<h2>{data.label ? data.label : "Placeholder"}</h2>
+				<p>{data.details.description ? data.details.description : "Placeholder"}</p>
 			</Box>
 		</Modal>
 	)

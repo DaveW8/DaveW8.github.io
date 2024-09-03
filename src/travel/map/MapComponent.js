@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import TimelineSlider from './TimelineSlider';
 import PointOfInterest from './PointOfInterest';
-import L from 'leaflet';
+import L, { marker } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -48,8 +48,8 @@ const MapBoundsRestrictor = ({bounds}) => {
         const southWest = currentBounds.getSouthWest();
         const northEast = currentBounds.getNorthEast();
 
-        console.log("Southwest Corner:", southWest.lat, southWest.lng);
-        console.log("Northeast Corner:", northEast.lat, northEast.lng);
+        //console.log("Southwest Corner:", southWest.lat, southWest.lng);
+        //console.log("Northeast Corner:", northEast.lat, northEast.lng);
       };
 
       // Call initially to get the bounds when the map loads
@@ -74,6 +74,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 	const [ratio, setRatio] = useState(0);
 	const [visibleMarkers, setVisibleMarkers] = useState([]);
 	const [poiIsOpen, setPoiIsOpen] = useState(false);
+	const [currentPoi, setCurrentPoi] = useState({label: "Placeholder", details: {description: "Placeholder"}});
 
 	const hasMounted = useRef(false);
 
@@ -81,15 +82,15 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 	const locations = routeData.map(point => ({label: point.label, style: timelineStyles.markStyles}))
 
 	const handleSliderChange = (value) => {
-		console.log("LOGGING CHANGE IN SLIDER VALUE", value)
+		//console.log("LOGGING CHANGE IN SLIDER VALUE", value)
     setRatio(value);
   };
 
   useEffect(() => {
 		if (hasMounted.current) {
-			console.log("LOGGING POINTS BEFORE UPDATE", polylinePoints)
+			//console.log("LOGGING POINTS BEFORE UPDATE", polylinePoints)
 			const updatedPoints = interpolatePoints(route, ratio);
-			console.log("LOGGING POINTS AFTER UPDATE", updatedPoints)
+			//console.log("LOGGING POINTS AFTER UPDATE", updatedPoints)
 			setPolylinePoints(updatedPoints);
 
 			const updatedMarkers = routeData.filter(marker => marker.time <= ratio);
@@ -99,7 +100,12 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 		}
   }, [ratio]);
 
-	const openPoi = () => setPoiIsOpen(true);
+	const openPoi = (markerPosition) => {
+		setPoiIsOpen(true)
+		//console.log("LOGGING MARKER POSITION", markerPosition)
+		const currentPoi = routeData.filter(poi => markerPosition === poi.position)
+		setCurrentPoi(currentPoi[0])
+	};
   const closePoi = () => setPoiIsOpen(false);
 
   return (
@@ -131,7 +137,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 					<Polyline positions={polylinePoints} color="blue" />
 				)}
 				{visibleMarkers.map((marker, index) => (
-					<Marker key={index} position={marker.position} eventHandlers={{ click: openPoi }}>
+					<Marker key={index} position={marker.position} eventHandlers={{ click: () => {openPoi(marker.position)} }}>
 						<Popup>{marker.label}</Popup>
 					</Marker>
 				))}
@@ -139,6 +145,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 				<PointOfInterest
 					open={poiIsOpen}
 					onClose={closePoi}
+					data={currentPoi}
 				/>
 			</MapContainer>
 			<TimelineSlider onChange={handleSliderChange} locations={locations} styles={timelineStyles} />
