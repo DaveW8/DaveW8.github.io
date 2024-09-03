@@ -1,7 +1,19 @@
 import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Polyline,  Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import TimelineSlider from './TimelineSlider';
+import PointOfInterest from './PointOfInterest';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+		iconSize: [25,41], 
+		iconAnchor: [12,41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 const interpolatePoints = (points, ratio) => {
   if (points.length < 2) return points;
@@ -61,6 +73,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 	const [polylinePoints, setPolylinePoints] = useState([]);
 	const [ratio, setRatio] = useState(0);
 	const [visibleMarkers, setVisibleMarkers] = useState([]);
+	const [poiIsOpen, setPoiIsOpen] = useState(false);
 
 	const hasMounted = useRef(false);
 
@@ -85,6 +98,9 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 			hasMounted.current = true;
 		}
   }, [ratio]);
+
+	const openPoi = () => setPoiIsOpen(true);
+  const closePoi = () => setPoiIsOpen(false);
 
   return (
 		<div 
@@ -115,11 +131,15 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 					<Polyline positions={polylinePoints} color="blue" />
 				)}
 				{visibleMarkers.map((marker, index) => (
-					<Marker key={index} position={marker.position}>
+					<Marker key={index} position={marker.position} eventHandlers={{ click: openPoi }}>
 						<Popup>{marker.label}</Popup>
 					</Marker>
 				))}
 				<MapBoundsRestrictor bounds={bounds} />
+				<PointOfInterest
+					open={poiIsOpen}
+					onClose={closePoi}
+				/>
 			</MapContainer>
 			<TimelineSlider onChange={handleSliderChange} locations={locations} styles={timelineStyles} />
 		</div>
