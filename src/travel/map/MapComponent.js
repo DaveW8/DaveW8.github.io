@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import TimelineSlider from './TimelineSlider';
 import PointOfInterest from './PointOfInterest';
 import L, { marker } from 'leaflet';
@@ -18,17 +18,46 @@ L.Marker.prototype.options.icon = DefaultIcon;
 const interpolatePoints = (points, ratio) => {
   if (points.length < 2) return points;
 
-  const index = Math.floor(ratio * (points.length - 1));
-  const nextIndex = Math.min(index + 1, points.length - 1);
+  //const index = Math.floor(ratio * (points.length - 1));
+	const index = Math.floor(ratio)
+  //const nextIndex = Math.min(index + 1, points.length - 1);
+	const nextIndex = index + 1;
   const startPoint = points[index];
-  const endPoint = points[nextIndex];
+  let endPoint = points[nextIndex];
+	if (nextIndex >= points.length) {
+		endPoint = points[index];
+	}
 
-  const lat = startPoint[0] + (endPoint[0] - startPoint[0]) * (ratio * (points.length - 1) - index);
-  const lng = startPoint[1] + (endPoint[1] - startPoint[1]) * (ratio * (points.length - 1) - index);
+  //const lat = startPoint[0] + (endPoint[0] - startPoint[0]) * (ratio * (points.length - 1) - index);
+  //const lng = startPoint[1] + (endPoint[1] - startPoint[1]) * (ratio * (points.length - 1) - index);
+	const lat = startPoint[0] + (endPoint[0] - startPoint[0]) * (ratio - index);
+  const lng = startPoint[1] + (endPoint[1] - startPoint[1]) * (ratio - index);
 
   //return points.slice(0, nextIndex + 1).concat([[lat, lng]]);
 	return points.slice(0, nextIndex).concat([[lat, lng]]);
 };
+
+/*
+const interpolatePoints = (points, ratio) => {
+  if (points.length < 2) return points;
+
+  // Normalize ratio to be within [0, points.length - 1]
+  const scaledRatio = ratio * (points.length - 1);
+  const index = Math.floor(scaledRatio);
+  const nextIndex = Math.min(index + 1, points.length - 1);
+
+  const startPoint = points[index];
+  const endPoint = points[nextIndex];
+
+  const fraction = scaledRatio - index;
+
+  const lat = startPoint[0] + (endPoint[0] - startPoint[0]) * fraction;
+  const lng = startPoint[1] + (endPoint[1] - startPoint[1]) * fraction;
+
+  // Return the points including the interpolated point
+  return points.slice(0, nextIndex).concat([[lat, lng]]);
+};
+*/
 
 // Restrics the map bounds and also logs coordinates
 const MapBoundsRestrictor = ({bounds}) => {
@@ -74,15 +103,23 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 	const [ratio, setRatio] = useState(0);
 	const [visibleMarkers, setVisibleMarkers] = useState([]);
 	const [poiIsOpen, setPoiIsOpen] = useState(false);
-	const [currentPoi, setCurrentPoi] = useState({label: "Placeholder", details: {description: "Placeholder"}});
+	const [currentPoi, setCurrentPoi] = useState({
+		label: "Placeholder", 
+		details: {
+			description: "Placeholder"
+		}
+	});
 
 	const hasMounted = useRef(false);
 
 	const route = routeData.map(point => point.position)
-	const locations = routeData.map(point => ({label: point.label, style: timelineStyles.markStyles}))
+	const locations = routeData.map(point => ({
+		label: point.label, 
+		style: timelineStyles.markStyles
+	}))
 
 	const handleSliderChange = (value) => {
-		//console.log("LOGGING CHANGE IN SLIDER VALUE", value)
+		console.log("LOGGING CHANGE IN SLIDER VALUE", value)
     setRatio(value);
   };
 
@@ -136,6 +173,13 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 				{polylinePoints.length > 0 && (
 					<Polyline positions={polylinePoints} color="blue" />
 				)}
+				<Circle
+					center={polylinePoints.length > 0 ? polylinePoints[polylinePoints.length - 1] : [0, 0]}
+					radius={10}
+					color="red"
+					fillColor="red"
+					fillOpacity={0.5}
+				/>
 				{visibleMarkers.map((marker, index) => (
 					<Marker key={index} position={marker.position} eventHandlers={{ click: () => {openPoi(marker.position)} }}>
 						<Popup>{marker.label}</Popup>

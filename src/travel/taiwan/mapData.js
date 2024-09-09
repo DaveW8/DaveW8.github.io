@@ -21,9 +21,25 @@ const routeData = [
 	{
 		label: "Yehliu Geopark",
 		position: [25.20644571375639, 121.69047652633472],
-		time: 1,
+		time: 1, 
 		details: {
 			description: "A geopark we visited on Day 2 (first full day in Taipei). It's known for its rock formations caused by erosion."
+		}
+	},
+	{
+		label: "Jiufen Old Street",
+		position: [25.109923970160335, 121.84518325631542],
+		time: 2,
+		details: {
+			description: "A mountainside town said to have influenced the movie Spirited Away. The old street is a district known for narrow streets, food stalls and great views."
+		}
+	},
+	{
+		label: "Keelung Miaokou Night Market",
+		position: [25.128468808652094, 121.74314760752218],
+		time: 3,
+		details: {
+			description: "One of Taiwan's most well known night markets, fresh seafood is a specialty here in the port town of Keelung."
 		}
 	}
 ]

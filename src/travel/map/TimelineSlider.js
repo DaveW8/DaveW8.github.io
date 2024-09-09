@@ -5,6 +5,8 @@ import 'rc-slider/assets/index.css';
 const TimelineSlider = ({ onChange, locations, styles }) => {
 	const { railStyle, trackStyle, handleStyle, labelStyle } = styles;
 
+	console.log("LOGGING LOCATIONS", locations)
+
   return (
 		<div 
 			style={{ 
@@ -20,7 +22,7 @@ const TimelineSlider = ({ onChange, locations, styles }) => {
 		}}>
 			<Slider
 				min={0}
-				max={1}
+				max={locations.length - 1}
 				step={0.01}
 				marks={locations}
 				onChange={onChange}
@@ -32,5 +34,5 @@ const TimelineSlider = ({ onChange, locations, styles }) => {
 		</div>
   );
 };
-
+ 
 export default TimelineSlider;
