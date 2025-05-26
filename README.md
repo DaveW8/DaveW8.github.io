@@ -1,3 +1,10 @@
+# TODO
+- Back button to return to homepage
+- Potential day picker on the map to swap out sliders on a day by day basis
+- Potential redesign of homepage to accomodate Japan 2025 trip
+
+-----
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).

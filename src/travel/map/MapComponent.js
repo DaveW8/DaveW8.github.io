@@ -7,6 +7,8 @@ import 'leaflet/dist/leaflet.css';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
+var polyline = require('@mapbox/polyline');
+
 let DefaultIcon = L.icon({
     iconUrl: icon,
     shadowUrl: iconShadow,
@@ -18,50 +20,22 @@ L.Marker.prototype.options.icon = DefaultIcon;
 const interpolatePoints = (points, ratio) => {
   if (points.length < 2) return points;
 
-  //const index = Math.floor(ratio * (points.length - 1));
 	const index = Math.floor(ratio)
-  //const nextIndex = Math.min(index + 1, points.length - 1);
 	const nextIndex = index + 1;
-  const startPoint = points[index];
-  let endPoint = points[nextIndex];
+	const startPoint = points[index];
+	let endPoint = points[nextIndex];
 	if (nextIndex >= points.length) {
 		endPoint = points[index];
 	}
 
-  //const lat = startPoint[0] + (endPoint[0] - startPoint[0]) * (ratio * (points.length - 1) - index);
-  //const lng = startPoint[1] + (endPoint[1] - startPoint[1]) * (ratio * (points.length - 1) - index);
 	const lat = startPoint[0] + (endPoint[0] - startPoint[0]) * (ratio - index);
-  const lng = startPoint[1] + (endPoint[1] - startPoint[1]) * (ratio - index);
+	const lng = startPoint[1] + (endPoint[1] - startPoint[1]) * (ratio - index);
 
-  //return points.slice(0, nextIndex + 1).concat([[lat, lng]]);
 	return points.slice(0, nextIndex).concat([[lat, lng]]);
 };
 
-/*
-const interpolatePoints = (points, ratio) => {
-  if (points.length < 2) return points;
-
-  // Normalize ratio to be within [0, points.length - 1]
-  const scaledRatio = ratio * (points.length - 1);
-  const index = Math.floor(scaledRatio);
-  const nextIndex = Math.min(index + 1, points.length - 1);
-
-  const startPoint = points[index];
-  const endPoint = points[nextIndex];
-
-  const fraction = scaledRatio - index;
-
-  const lat = startPoint[0] + (endPoint[0] - startPoint[0]) * fraction;
-  const lng = startPoint[1] + (endPoint[1] - startPoint[1]) * fraction;
-
-  // Return the points including the interpolated point
-  return points.slice(0, nextIndex).concat([[lat, lng]]);
-};
-*/
-
-// Restrics the map bounds and also logs coordinates
+// Restricts the map bounds and also logs coordinates
 const MapBoundsRestrictor = ({bounds}) => {
-	//const bounds = boundsObject.bounds
   const map = useMap();
 
   useEffect(() => {
@@ -73,9 +47,9 @@ const MapBoundsRestrictor = ({bounds}) => {
 					map.setView(bounds.getCenter(), map.getZoom());
 				}
 
-				const currentBounds = map.getBounds();
-        const southWest = currentBounds.getSouthWest();
-        const northEast = currentBounds.getNorthEast();
+				//const currentBounds = map.getBounds();
+        //const southWest = currentBounds.getSouthWest();
+        //const northEast = currentBounds.getNorthEast();
 
         //console.log("Southwest Corner:", southWest.lat, southWest.lng);
         //console.log("Northeast Corner:", northEast.lat, northEast.lng);
@@ -109,28 +83,66 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 			description: "Placeholder"
 		}
 	});
+	const [OSRMData, setOSRMData] = useState([]);
 
 	const hasMounted = useRef(false);
-
 	const route = routeData.map(point => point.position)
-	const locations = routeData.map(point => ({
-		label: point.label, 
-		style: timelineStyles.markStyles
-	}))
+	const totalCoordinates = OSRMData.flat();
+
+	// Calculate the index of the start of each segment and assign to locations
+	const segmentStartIndexes = OSRMData.reduce((acc, segment, i) => {
+		const prev = acc[i - 1] ?? 0;
+		acc.push(i === 0 ? 0 : prev + OSRMData[i - 1].length);
+		return acc;
+	}, []);
+	segmentStartIndexes.push(totalCoordinates.length - 1);
+	routeData[routeData.length - 1].coordIndex = totalCoordinates.length - 1;
+
+	routeData.map(location => {
+		location.coordIndex = segmentStartIndexes[location.time]
+	})
+
+	// Build slider marks where they appear *evenly spaced* across the slider
+	const locations = segmentStartIndexes.reduce((acc, coordIndex, i) => {
+		acc[coordIndex] = {label: routeData.find(location => location.time === i).label, style: timelineStyles.markStyles}
+		return acc;
+	}, {});
 
 	const handleSliderChange = (value) => {
 		console.log("LOGGING CHANGE IN SLIDER VALUE", value)
-    setRatio(value);
+  	setRatio(value);
   };
 
+	// Fetch OSRM data on initial load only
+	useEffect(() => {
+		const fetchRoutes = async () => {
+			const routeRequests = [];
+			route.forEach((point, index) => {
+				if (!(route.length - 1 === index)) {
+					routeRequests.push(new Promise((resolve, reject) => {
+						fetch(`https://router.project-osrm.org/route/v1/driving/${point[1]},${point[0]};${route[index + 1][1]},${route[index + 1][0]}?overview=full`)
+							.then(response => response.json())
+							.then(data => {
+								resolve(polyline.decode(data.routes[0].geometry))
+							})
+					}))
+				}
+			})
+			const routes = await Promise.all(routeRequests);
+			setOSRMData(routes);
+			console.log("LOGGING ALL ROUTES", routes)
+		}
+
+		fetchRoutes();
+	}, []);
+
+	// Recalculate polyline and markers on action
   useEffect(() => {
 		if (hasMounted.current) {
-			//console.log("LOGGING POINTS BEFORE UPDATE", polylinePoints)
-			const updatedPoints = interpolatePoints(route, ratio);
-			//console.log("LOGGING POINTS AFTER UPDATE", updatedPoints)
+			const updatedPoints = interpolatePoints(totalCoordinates, ratio);
 			setPolylinePoints(updatedPoints);
 
-			const updatedMarkers = routeData.filter(marker => marker.time <= ratio);
+			const updatedMarkers = routeData.filter(marker => marker.coordIndex <= ratio);
     	setVisibleMarkers(updatedMarkers);
 		} else {
 			hasMounted.current = true;
@@ -139,9 +151,8 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 
 	const openPoi = (markerPosition) => {
 		setPoiIsOpen(true)
-		//console.log("LOGGING MARKER POSITION", markerPosition)
 		const currentPoi = routeData.filter(poi => markerPosition === poi.position)
-		setCurrentPoi(currentPoi[0])
+		setCurrentPoi(currentPoi[0]);
 	};
   const closePoi = () => setPoiIsOpen(false);
 
@@ -171,7 +182,10 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 					attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 				/>
 				{polylinePoints.length > 0 && (
-					<Polyline positions={polylinePoints} color="blue" />
+					<Polyline 
+						positions={polylinePoints} 
+						color="blue" 
+					/>
 				)}
 				<Circle
 					center={polylinePoints.length > 0 ? polylinePoints[polylinePoints.length - 1] : [0, 0]}
@@ -192,7 +206,13 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 					data={currentPoi}
 				/>
 			</MapContainer>
-			<TimelineSlider onChange={handleSliderChange} locations={locations} styles={timelineStyles} />
+			<TimelineSlider 
+				disabled={OSRMData.length === 0} 
+				onChange={handleSliderChange} 
+				locations={locations} 
+				styles={timelineStyles} 
+				max={totalCoordinates.length - 1}
+			/>
 		</div>
   );
 };

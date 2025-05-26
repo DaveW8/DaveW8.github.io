@@ -2,10 +2,8 @@ import React from 'react';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
-const TimelineSlider = ({ onChange, locations, styles }) => {
+const TimelineSlider = ({ disabled, onChange, locations, styles, max }) => {
 	const { railStyle, trackStyle, handleStyle, labelStyle } = styles;
-
-	console.log("LOGGING LOCATIONS", locations)
 
   return (
 		<div 
@@ -21,8 +19,9 @@ const TimelineSlider = ({ onChange, locations, styles }) => {
 			zIndex: 1000,
 		}}>
 			<Slider
+				disabled={disabled}
 				min={0}
-				max={locations.length - 1}
+				max={max}
 				step={0.01}
 				marks={locations}
 				onChange={onChange}
