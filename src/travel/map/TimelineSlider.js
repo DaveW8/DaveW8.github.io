@@ -8,16 +8,15 @@ const TimelineSlider = ({ disabled, onChange, locations, styles, max }) => {
   return (
 		<div 
 			style={{ 
-			position: 'absolute',
-			bottom: '20px',
-			left: '20px',
-			bottom: '20px',
-			right: '20px',
-			padding: '20px',
-			background: 'white',
-			boxShadow: '0 0 5px rgba(0,0,0,0.3)',
-			zIndex: 1000,
-		}}>
+				position: 'absolute',
+				bottom: '50px',
+				left: '50px',
+				right: '50px',
+				padding: '20px',
+				background: 'white',
+				boxShadow: '0 0 5px rgba(0,0,0,0.3)',
+				zIndex: 1000,
+			}}>
 			<Slider
 				disabled={disabled}
 				min={0}

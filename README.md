@@ -1,7 +1,9 @@
-# TODO
+# Potential Features
 - Back button to return to homepage
+- Clicking a mark on the slider zooms in to the location on the map
 - Potential day picker on the map to swap out sliders on a day by day basis
-- Potential redesign of homepage to accomodate Japan 2025 trip
+- Redesign of homepage to accomodate Japan 2025 trip
+- Self host OSRM to avoid rate limits
 
 -----
 

@@ -7,6 +7,8 @@ import 'leaflet/dist/leaflet.css';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
+const EPSILON = 1e-6;
+
 var polyline = require('@mapbox/polyline');
 
 let DefaultIcon = L.icon({
@@ -17,22 +19,6 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-const interpolatePoints = (points, ratio) => {
-  if (points.length < 2) return points;
-
-	const index = Math.floor(ratio)
-	const nextIndex = index + 1;
-	const startPoint = points[index];
-	let endPoint = points[nextIndex];
-	if (nextIndex >= points.length) {
-		endPoint = points[index];
-	}
-
-	const lat = startPoint[0] + (endPoint[0] - startPoint[0]) * (ratio - index);
-	const lng = startPoint[1] + (endPoint[1] - startPoint[1]) * (ratio - index);
-
-	return points.slice(0, nextIndex).concat([[lat, lng]]);
-};
 
 // Restricts the map bounds and also logs coordinates
 const MapBoundsRestrictor = ({bounds}) => {
@@ -103,8 +89,22 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 	})
 
 	// Build slider marks where they appear *evenly spaced* across the slider
-	const locations = segmentStartIndexes.reduce((acc, coordIndex, i) => {
-		acc[coordIndex] = {label: routeData.find(location => location.time === i).label, style: timelineStyles.markStyles}
+	const totalSteps = segmentStartIndexes.length - 1;
+	const sliderMin = 0;
+	const sliderMax = 100;
+	const stepSize = (sliderMax - sliderMin) / totalSteps;
+	let markStyle = timelineStyles.markStyles;
+	const locations = segmentStartIndexes.reduce((acc, loc, index) => {
+		const key = sliderMin + index * stepSize;
+		console.log("Logging key", key);
+		if (key === 0) {
+			markStyle = { ...markStyle, transform: 'translateX(0%)' }
+		} else if (key === 100) {
+			markStyle = { ...markStyle, transform: 'translateX(-100%)', whiteSpace: 'nowrap' }
+		} else {
+			markStyle = timelineStyles.markStyles;
+		}
+		acc[key] = {label: routeData.find(location => location.time === index).label, style: markStyle};
 		return acc;
 	}, {});
 
@@ -115,6 +115,8 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 
 	// Fetch OSRM data on initial load only
 	useEffect(() => {
+		// Not fetching routes at the moment due to rate limiting
+		/*
 		const fetchRoutes = async () => {
 			const routeRequests = [];
 			route.forEach((point, index) => {
@@ -134,15 +136,22 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 		}
 
 		fetchRoutes();
+		*/
+
+		// Use predownloaded routes for now
+		const routeCoordinates = routeData.map(location => location.route).slice(0, -1);
+		setOSRMData(routeCoordinates);
 	}, []);
 
 	// Recalculate polyline and markers on action
   useEffect(() => {
 		if (hasMounted.current) {
-			const updatedPoints = interpolatePoints(totalCoordinates, ratio);
+			const interpolationResult = interpolatePoints(ratio);
+			const updatedPoints = interpolationResult.points;
 			setPolylinePoints(updatedPoints);
 
-			const updatedMarkers = routeData.filter(marker => marker.coordIndex <= ratio);
+			const segmentIndex = interpolationResult.segmentIndex
+			const updatedMarkers = routeData.filter(marker => marker.time <= segmentIndex);
     	setVisibleMarkers(updatedMarkers);
 		} else {
 			hasMounted.current = true;
@@ -155,6 +164,43 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 		setCurrentPoi(currentPoi[0]);
 	};
   const closePoi = () => setPoiIsOpen(false);
+
+	const interpolatePoints = (ratio) => {
+		const segments = routeData.slice(0, -1).map(location => location.route);
+		const segmentIndex = Math.floor(ratio / stepSize);
+		let segmentProgress = (ratio % stepSize) / stepSize;
+		// Cap to valid range
+		const safeSegmentIndex = Math.min(segmentIndex, segments.length - 1);
+
+		if (ratio >= sliderMax) {
+			return { points: segments.flat(), segmentIndex };
+		}
+
+		if (isOnMark(ratio)) {
+			segmentProgress = 0;
+		}
+
+		let partial = [];
+
+		// Add all previous full segments
+		for (let i = 0; i < safeSegmentIndex; i++) {
+			partial = partial.concat(segments[i]);
+		}
+
+		// Add partial current segment
+		const currentSegment = segments[safeSegmentIndex];
+		const coordIndex = Math.floor(segmentProgress * currentSegment.length);
+
+		partial = partial.concat(currentSegment.slice(0, coordIndex + 1));
+
+		return { points: partial, segmentIndex }
+	};
+
+	// Smoothing to set the slider progress to 0 if it's too close to being on the mark but isn't
+	const isOnMark = (sliderValue) => {
+		return Math.abs((sliderValue % stepSize)) < EPSILON || 
+			Math.abs((sliderValue % stepSize) - stepSize) < EPSILON;
+	}
 
   return (
 		<div 
@@ -189,7 +235,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 				)}
 				<Circle
 					center={polylinePoints.length > 0 ? polylinePoints[polylinePoints.length - 1] : [0, 0]}
-					radius={10}
+					radius={50}
 					color="red"
 					fillColor="red"
 					fillOpacity={0.5}
@@ -211,7 +257,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 				onChange={handleSliderChange} 
 				locations={locations} 
 				styles={timelineStyles} 
-				max={totalCoordinates.length - 1}
+				max={sliderMax}
 			/>
 		</div>
   );
