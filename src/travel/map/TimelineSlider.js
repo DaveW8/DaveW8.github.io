@@ -1,8 +1,7 @@
-import React from 'react';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
-const TimelineSlider = ({ disabled, onChange, locations, styles, max }) => {
+const TimelineSlider = ({ ratio, disabled, onChange, locations, styles, max }) => {
 	const { railStyle, trackStyle, handleStyle, labelStyle } = styles;
 
   return (
@@ -18,6 +17,7 @@ const TimelineSlider = ({ disabled, onChange, locations, styles, max }) => {
 				zIndex: 1000,
 			}}>
 			<Slider
+				value={ratio}
 				disabled={disabled}
 				min={0}
 				max={max}

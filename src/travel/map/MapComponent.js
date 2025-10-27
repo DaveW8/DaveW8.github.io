@@ -1,15 +1,22 @@
 import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import Select from 'react-select';
 import TimelineSlider from './TimelineSlider';
 import PointOfInterest from './PointOfInterest';
 import L, { marker } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+//var polyline = require('@mapbox/polyline');
 
 const EPSILON = 1e-6;
-
-var polyline = require('@mapbox/polyline');
+const MIN_SLIDER = 0;
+const MAX_SLIDER = 100;
+// IF this is selected, will use the entire route
+const DEFAULT_DAY = {
+	value: 0, 
+	label: "Day 0"	
+};
 
 let DefaultIcon = L.icon({
     iconUrl: icon,
@@ -19,6 +26,15 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
+const selectStyles = {
+	container: (base) => ({
+		...base,
+		position: 'absolute',
+		zIndex: 1000,
+		bottom: '150px',
+		left: '50px'
+	})
+}
 
 // Restricts the map bounds and also logs coordinates
 const MapBoundsRestrictor = ({bounds}) => {
@@ -32,13 +48,6 @@ const MapBoundsRestrictor = ({bounds}) => {
 				if (!bounds.contains(map.getCenter())) {
 					map.setView(bounds.getCenter(), map.getZoom());
 				}
-
-				//const currentBounds = map.getBounds();
-        //const southWest = currentBounds.getSouthWest();
-        //const northEast = currentBounds.getNorthEast();
-
-        //console.log("Southwest Corner:", southWest.lat, southWest.lng);
-        //console.log("Northeast Corner:", northEast.lat, northEast.lng);
       };
 
       // Call initially to get the bounds when the map loads
@@ -57,7 +66,6 @@ const MapBoundsRestrictor = ({bounds}) => {
   return null; // This component does not need to render anything
 };
 
-//const MapComponent = ({center, minZoom, bounds, route, locations, routeData }) => {
 const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => {
 	const [polylinePoints, setPolylinePoints] = useState([]);
 	const [ratio, setRatio] = useState(0);
@@ -70,50 +78,48 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 		}
 	});
 	const [OSRMData, setOSRMData] = useState([]);
+	const [dayIndex, setDayIndex] = useState(0);
 
 	const hasMounted = useRef(false);
-	const route = routeData.map(point => point.position)
-	const totalCoordinates = OSRMData.flat();
 
-	// Calculate the index of the start of each segment and assign to locations
-	const segmentStartIndexes = OSRMData.reduce((acc, segment, i) => {
-		const prev = acc[i - 1] ?? 0;
-		acc.push(i === 0 ? 0 : prev + OSRMData[i - 1].length);
-		return acc;
-	}, []);
-	segmentStartIndexes.push(totalCoordinates.length - 1);
-	routeData[routeData.length - 1].coordIndex = totalCoordinates.length - 1;
+	const getFullRoute = () => {
+		return routeData.map(day => 
+			day.index === routeData.length ? day.locations : day.locations.slice(0, -1)
+		).flat();
+	}
 
-	routeData.map(location => {
-		location.coordIndex = segmentStartIndexes[location.time]
-	})
+	const getStepSize = () => {
+		return (MAX_SLIDER - MIN_SLIDER) / (OSRMData.length - 1)
+	}
 
-	// Build slider marks where they appear *evenly spaced* across the slider
-	const totalSteps = segmentStartIndexes.length - 1;
-	const sliderMin = 0;
-	const sliderMax = 100;
-	const stepSize = (sliderMax - sliderMin) / totalSteps;
-	let markStyle = timelineStyles.markStyles;
-	const locations = segmentStartIndexes.reduce((acc, loc, index) => {
-		const key = sliderMin + index * stepSize;
-		console.log("Logging key", key);
-		if (key === 0) {
-			markStyle = { ...markStyle, transform: 'translateX(0%)' }
-		} else if (key === 100) {
-			markStyle = { ...markStyle, transform: 'translateX(-100%)', whiteSpace: 'nowrap' }
-		} else {
-			markStyle = timelineStyles.markStyles;
-		}
-		acc[key] = {label: routeData.find(location => location.time === index).label, style: markStyle};
-		return acc;
-	}, {});
+	const buildLocations = (dayIndex) => {
+		let markStyle = timelineStyles.markStyles;
+		const locations = OSRMData.reduce((acc, loc, index) => {
+			const key = MIN_SLIDER + index * getStepSize();
+			if (key === 0) {
+				markStyle = { ...markStyle, transform: 'translateX(0%)' }
+			} else if (key === 100) {
+				markStyle = { ...markStyle, transform: 'translateX(-100%)', whiteSpace: 'nowrap' }
+			} else {
+				markStyle = timelineStyles.markStyles;
+			}
+			acc[key] = {label: OSRMData[index].label, style: markStyle};
+			return acc;
+		}, {})
+		
+		return locations;
+	};
 
 	const handleSliderChange = (value) => {
-		console.log("LOGGING CHANGE IN SLIDER VALUE", value)
   	setRatio(value);
   };
 
-	// Fetch OSRM data on initial load only
+	const handleDayChange = (value) => {
+		const dayIndex = value.value
+		setDayIndex(dayIndex);
+	}
+
+	// Fetch OSRM data on initial load only (Needs updating to fit new data format)
 	useEffect(() => {
 		// Not fetching routes at the moment due to rate limiting
 		/*
@@ -139,11 +145,21 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 		*/
 
 		// Use predownloaded routes for now
-		const routeCoordinates = routeData.map(location => location.route).slice(0, -1);
-		setOSRMData(routeCoordinates);
+		setOSRMData(getFullRoute());
 	}, []);
 
-	// Recalculate polyline and markers on action
+	// Clear map and set timeline slider to matching day when the day is changed
+	useEffect(() => {
+		const data = dayIndex === 0 
+			? getFullRoute()
+			: routeData.find(day => day.index === dayIndex).locations;
+		setOSRMData(data);
+		setVisibleMarkers([]);
+		setPolylinePoints([]);
+		setRatio([0]);
+	}, [dayIndex]);
+
+	// Recalculate polyline and markers when the timeline slider is moved
   useEffect(() => {
 		if (hasMounted.current) {
 			const interpolationResult = interpolatePoints(ratio);
@@ -151,7 +167,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 			setPolylinePoints(updatedPoints);
 
 			const segmentIndex = interpolationResult.segmentIndex
-			const updatedMarkers = routeData.filter(marker => marker.time <= segmentIndex);
+			const updatedMarkers = OSRMData.slice(0, segmentIndex + 1);
     	setVisibleMarkers(updatedMarkers);
 		} else {
 			hasMounted.current = true;
@@ -160,19 +176,20 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 
 	const openPoi = (markerPosition) => {
 		setPoiIsOpen(true)
-		const currentPoi = routeData.filter(poi => markerPosition === poi.position)
+		const currentPoi = OSRMData.filter(poi => markerPosition === poi.position);
 		setCurrentPoi(currentPoi[0]);
 	};
   const closePoi = () => setPoiIsOpen(false);
 
 	const interpolatePoints = (ratio) => {
-		const segments = routeData.slice(0, -1).map(location => location.route);
+		const segments = OSRMData.slice(0, -1).map(location => location.route);
+		const stepSize = getStepSize(dayIndex);
 		const segmentIndex = Math.floor(ratio / stepSize);
 		let segmentProgress = (ratio % stepSize) / stepSize;
 		// Cap to valid range
 		const safeSegmentIndex = Math.min(segmentIndex, segments.length - 1);
 
-		if (ratio >= sliderMax) {
+		if (ratio >= MAX_SLIDER) {
 			return { points: segments.flat(), segmentIndex };
 		}
 
@@ -198,6 +215,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 
 	// Smoothing to set the slider progress to 0 if it's too close to being on the mark but isn't
 	const isOnMark = (sliderValue) => {
+		const stepSize = getStepSize();
 		return Math.abs((sliderValue % stepSize)) < EPSILON || 
 			Math.abs((sliderValue % stepSize) - stepSize) < EPSILON;
 	}
@@ -207,9 +225,6 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 			style={{ 
 				height: '100vh',
 				margin: '0',
-				overflow: 'hidden',
-				position: 'relative'
-				//width: '100%'
 			}}
 		>
 			<MapContainer 
@@ -252,12 +267,25 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 					data={currentPoi}
 				/>
 			</MapContainer>
-			<TimelineSlider 
+			<Select
+				defaultValue={DEFAULT_DAY}
+				options={[
+					DEFAULT_DAY, 
+					...routeData.map(day => {
+						return { value: day.index, label: day.title}
+					})
+				]}
+				onChange={handleDayChange}
+				styles={selectStyles}
+				menuPlacement="top"
+			/>
+			<TimelineSlider
+				ratio={ratio} 
 				disabled={OSRMData.length === 0} 
 				onChange={handleSliderChange} 
-				locations={locations} 
+				locations={buildLocations(dayIndex)}
 				styles={timelineStyles} 
-				max={sliderMax}
+				max={MAX_SLIDER}
 			/>
 		</div>
   );

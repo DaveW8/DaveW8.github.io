@@ -1,9 +1,14 @@
 # Potential Features
 - Back button to return to homepage
 - Clicking a mark on the slider zooms in to the location on the map
-- Potential day picker on the map to swap out sliders on a day by day basis
-- Redesign of homepage to accomodate Japan 2025 trip
+- Adjust red marker size when drawing line based on map zoom (lower zoom = bigger circle)
+- Add overview button for each day as a collage with the days highlights
+- Fill out the rest of the route data and add images/descriptions
+- Redesign of homepage to accomodate Japan 2025 trip (Maybe a map with the destination popups)
+
+# Stretch Infra Goals
 - Self host OSRM to avoid rate limits
+- Use database for routes and content
 
 -----
 
