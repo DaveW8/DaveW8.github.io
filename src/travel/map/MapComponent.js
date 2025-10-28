@@ -106,7 +106,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 			} else {
 				markStyle = timelineStyles.markStyles;
 			}
-			acc[key] = {label: OSRMData[index].label, style: markStyle};
+			acc[key] = {label: OSRMData[index].label, style: dayIndex === 0 ? {display: "none"} : markStyle};
 			return acc;
 		}, {})
 		
