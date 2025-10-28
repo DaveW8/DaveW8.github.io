@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Polyline, Marker, Popup, Circle, useMap } from
 import Select from 'react-select';
 import TimelineSlider from './TimelineSlider';
 import PointOfInterest from './PointOfInterest';
+import HomeButton from './HomeButton';
 import L, { marker } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -32,7 +33,9 @@ const selectStyles = {
 		position: 'absolute',
 		zIndex: 1000,
 		bottom: '150px',
-		left: '50px'
+		left: '50px',
+		fontSize: '20px', 
+ 		fontWeight: 'bold'
 	})
 }
 
@@ -267,6 +270,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 					data={currentPoi}
 				/>
 			</MapContainer>
+			<HomeButton />
 			<Select
 				defaultValue={DEFAULT_DAY}
 				options={[
