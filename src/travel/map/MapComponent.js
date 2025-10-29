@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, Popup, Circle, useMap, useMapEvent } from 'react-leaflet';
 import Select from 'react-select';
 import TimelineSlider from './TimelineSlider';
 import PointOfInterest from './PointOfInterest';
@@ -69,6 +69,16 @@ const MapBoundsRestrictor = ({bounds}) => {
   return null; // This component does not need to render anything
 };
 
+// Tracks the zoom level
+const ZoomTracker = ({ onZoomChange }) => {
+  useMapEvent("zoomend", (event) => {
+    const newZoom = event.target.getZoom();
+		console.log("LOGGING ZOOM LEVEL", newZoom)
+    onZoomChange(newZoom);
+  });
+  return null; // this component only attaches the event listener
+}
+
 const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => {
 	const [polylinePoints, setPolylinePoints] = useState([]);
 	const [ratio, setRatio] = useState(0);
@@ -82,6 +92,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 	});
 	const [OSRMData, setOSRMData] = useState([]);
 	const [dayIndex, setDayIndex] = useState(0);
+	const [zoom, setZoom] = useState(9);
 
 	const hasMounted = useRef(false);
 
@@ -253,7 +264,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 				)}
 				<Circle
 					center={polylinePoints.length > 0 ? polylinePoints[polylinePoints.length - 1] : [0, 0]}
-					radius={50}
+					radius={100 * Math.pow(2, 13 - zoom)}
 					color="red"
 					fillColor="red"
 					fillOpacity={0.5}
@@ -264,6 +275,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 					</Marker>
 				))}
 				<MapBoundsRestrictor bounds={bounds} />
+				<ZoomTracker onZoomChange={setZoom} />
 				<PointOfInterest
 					open={poiIsOpen}
 					onClose={closePoi}
