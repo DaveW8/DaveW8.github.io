@@ -95,6 +95,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 	const [zoom, setZoom] = useState(9);
 
 	const hasMounted = useRef(false);
+	const mapRef = useRef(null);
 
 	const getFullRoute = () => {
 		return routeData.map(day => 
@@ -117,12 +118,26 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 			} else {
 				markStyle = timelineStyles.markStyles;
 			}
-			acc[key] = {label: OSRMData[index].label, style: dayIndex === 0 ? {display: "none"} : markStyle};
+			acc[key] = {
+				label: <span onClick={() => handleMarkClick(key, index)}>{OSRMData[index].label}</span>,
+				style: dayIndex === 0 ? {display: "none"} : markStyle
+			};
 			return acc;
 		}, {})
 		
 		return locations;
 	};
+
+	const handleMarkClick = (key, value) => {
+		const map = mapRef.current;
+		if (map) {
+			const coordinates = OSRMData[value].position;
+			map.flyTo(coordinates, 14, { animate: true })
+		} else {
+			console.log("Map not ready")
+		}
+		handleSliderChange(value);
+	}
 
 	const handleSliderChange = (value) => {
   	setRatio(value);
@@ -251,6 +266,7 @@ const MapComponent = ({center, minZoom, bounds, routeData, timelineStyles }) => 
 					height: '100%', 
 					width: '100%' 
 				}}
+				whenReady={mapInstance => mapRef.current = mapInstance.target}
 			>
 				<TileLayer
 					url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
